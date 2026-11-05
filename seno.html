@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rincón de la Seño · Aprendizaje Mágico</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#263044;background:#f5f0ff}*{box-sizing:border-box}body{margin:0}main{max-width:850px;margin:35px auto;padding:20px}header{text-align:center;margin-bottom:24px}h1{color:#6339a8;margin-bottom:5px}p{line-height:1.5}.panel,.item{background:white;border-radius:18px;padding:23px;margin:15px 0;box-shadow:0 5px 22px #49376b12}label{display:block;font-weight:650;margin-top:14px}input{width:100%;padding:12px;border:1px solid #b9aecb;border-radius:10px;font-size:16px;margin-top:6px}button{background:#7045bb;color:white;border:0;border-radius:10px;padding:12px 16px;font-weight:700;cursor:pointer;margin:10px 8px 0 0}button.secondary{background:#eae3f5;color:#4d3973}button.danger{background:#ad3458}button:disabled{opacity:.5;cursor:wait}.muted{color:#665e73}.hidden{display:none!important}.status{padding:10px;border-radius:9px;background:#f1ebff;white-space:pre-wrap;overflow-wrap:anywhere}.item h3{margin-bottom:4px}.item p{overflow-wrap:anywhere}.actions{display:flex;flex-wrap:wrap}.tag{display:inline-block;background:#eee5fb;border-radius:999px;padding:5px 11px;font-size:13px}.image{max-width:180px;max-height:160px;object-fit:contain;display:block;margin-top:12px}a{color:#5c36a4}
+</style>
+</head>
+<body><main>
+<header><div style="font-size:42px">🌟📚</div><h1>Rincón de la Seño</h1><p>Aprendizaje Mágico · Revisión de adivinanzas</p></header>
+<section class="panel" id="setup"><h2>Conexión pendiente</h2><p>Antes de publicar, completá en el archivo las constantes <code>SUPABASE_URL</code> y <code>SUPABASE_PUBLISHABLE_KEY</code>. Usá únicamente la clave pública <code>sb_publishable_...</code>; nunca una clave secreta.</p></section>
+<section class="panel hidden" id="login"><h2>Ingreso docente</h2><form id="loginForm"><label>Correo electrónico<input id="email" type="email" autocomplete="username" required></label><label>Contraseña<input id="password" type="password" autocomplete="current-password" required></label><button type="submit">Ingresar</button></form><button class="secondary" id="resetRequest">Crear o recuperar contraseña</button><p class="muted">La cuenta debe estar autorizada en Supabase. Esta página no concede permisos por sí sola.</p></section>
+<section class="panel hidden" id="newPassword"><h2>Establecer contraseña</h2><form id="passwordForm"><label>Nueva contraseña (mínimo 12 caracteres)<input id="passwordNew" type="password" minlength="12" autocomplete="new-password" required></label><button type="submit">Guardar contraseña</button></form></section>
+<section class="panel hidden" id="dashboard"><h2>Adivinanzas por revisar</h2><p id="who" class="muted"></p><button id="reload">Actualizar lista</button><button class="secondary" id="logout">Cerrar sesión</button><div id="items"></div></section>
+<p class="status" id="message" role="status" aria-live="polite">Preparando conexión…</p>
+</main>
+<script type="module">
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+// CONFIGURACIÓN: reemplazar los dos textos de abajo ANTES de publicar.
+const SUPABASE_URL = 'PEGAR_AQUI_URL_SUPABASE';
+const SUPABASE_PUBLISHABLE_KEY = 'PEGAR_AQUI_CLAVE_PUBLICA';
+const $ = id => document.getElementById(id);
+const show = (id, yes) => $(id).classList.toggle('hidden', !yes);
+const msg = text => $('message').textContent = text;
+const ready = SUPABASE_URL.startsWith('https://') && SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_');
+if (!ready) { msg('Falta conectar Supabase. El archivo todavía no está listo para publicarse.'); }
+else {
+ show('setup',false);
+ const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {auth:{detectSessionInUrl:true,persistSession:true,autoRefreshToken:true}});
+ let recovery = false;
+ const authError = err => { console.error(err); msg('No se pudo completar la operación: '+(err?.message || 'Error desconocido')); };
+ async function authorized(){
+  const {data:{user},error} = await supabase.auth.getUser();
+  if(error || !user) return false;
+  // La lista de docentes está protegida y no expuesta en Data API.
+  // La autorización real para leer/moderar se verifica en las políticas RLS de adivinanzas.
+  // Este chequeo es solo informativo: una consulta a filas pendientes confirma acceso.
+  return true;
+ }
+ async function refresh(){
+  const {data:{session}} = await supabase.auth.getSession();
+  show('login',!session && !recovery);
+  show('dashboard',!!session && !recovery);
+  show('newPassword',recovery);
+  if(session && !recovery){$('who').textContent='Sesión: '+session.user.email; await load();}
+  else if(!recovery) msg('Ingresá con tu cuenta docente.');
+ }
+ async function load(){
+  msg('Buscando adivinanzas pendientes…');
+  const {data,error} = await supabase.from('adivinanzas').select('id,nombre_fantasia,texto_adivinanza,respuesta_correcta,imagen,estado,created_at').eq('estado','pendiente').order('created_at',{ascending:true}).limit(100);
+  if(error){authError(error);return;}
+  const list=$('items');list.replaceChildren();
+  if(!data.length){msg('No hay adivinanzas pendientes, o esta cuenta no tiene permiso para verlas.');return;}
+  msg(`Se encontraron ${data.length} adivinanzas pendientes.`);
+  for(const item of data){
+   const box=document.createElement('article');box.className='item';
+   const heading=document.createElement('h3');heading.textContent=item.nombre_fantasia||'Autor sin apodo';box.append(heading);
+   for(const [label,value] of [['Adivinanza',item.texto_adivinanza],['Respuesta',item.respuesta_correcta]]){
+    const p=document.createElement('p');const strong=document.createElement('strong');strong.textContent=label+': ';p.append(strong,document.createTextNode(value||'—'));box.append(p);
+   }
+   if(item.imagen){const p=document.createElement('p');p.textContent='Imagen elegida: '+item.imagen;box.append(p);}
+   const actions=document.createElement('div');actions.className='actions';
+   for(const [label,status,cls] of [['Aprobar','aprobada',''],['Rechazar','rechazada','danger']]){
+    const button=document.createElement('button');button.textContent=label;button.className=cls;
+    button.onclick=async()=>{
+     if(!confirm(`¿${label} esta adivinanza?`))return;
+     button.disabled=true;
+     const {data:updated,error}=await supabase.from('adivinanzas').update({estado:status}).eq('id',item.id).eq('estado','pendiente').select('id');
+     if(error)authError(error);
+     else if(!updated?.length)msg('No se pudo confirmar el cambio. Revisá los permisos de Supabase.');
+     else {msg('Adivinanza '+status+'.');await load();}
+     button.disabled=false;
+    };actions.append(button);
+   }
+   box.append(actions);list.append(box);
+  }
+ }
+ $('loginForm').onsubmit=async e=>{e.preventDefault();msg('Iniciando sesión…');const {error}=await supabase.auth.signInWithPassword({email:$('email').value.trim(),password:$('password').value});if(error)authError(error);else await refresh();};
+ $('resetRequest').onclick=async()=>{
+  const email=$('email').value.trim();if(!email){msg('Primero escribí tu correo electrónico.');return;}
+  const redirectTo=new URL('seno.html',location.href).href;
+  const {error}=await supabase.auth.resetPasswordForEmail(email,{redirectTo});
+  if(error)authError(error);else msg('Si el correo está registrado, recibirás un enlace para establecer tu contraseña. Revisá también Spam.');
+ };
+ $('passwordForm').onsubmit=async e=>{e.preventDefault();const {error}=await supabase.auth.updateUser({password:$('passwordNew').value});if(error)authError(error);else{recovery=false;history.replaceState({},'',location.pathname);msg('Contraseña guardada.');await refresh();}};
+ $('reload').onclick=load;
+ $('logout').onclick=async()=>{await supabase.auth.signOut();await refresh();};
+ supabase.auth.onAuthStateChange((event)=>{
+  if(event==='PASSWORD_RECOVERY'){recovery=true;show('login',false);show('dashboard',false);show('newPassword',true);msg('Elegí tu contraseña nueva.');}
+  if(event==='SIGNED_OUT'){recovery=false;show('dashboard',false);show('login',true);}
+ });
+ await refresh();
+}
+</script>
+</body></html>
