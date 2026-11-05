@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>El desafío de las 10 estrellas | Aprendizaje Mágico</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#263153}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:linear-gradient(135deg,#dceaff,#fff1cb)}main{max-width:820px;margin:auto;padding:20px}header{text-align:center}h1{color:#5a3cba}section{background:#fff;border-radius:22px;padding:22px;margin:16px 0;box-shadow:0 8px 24px #27315b18}.hidden{display:none!important}.answers,.gallery{display:grid;gap:12px}button,input,textarea{font:inherit;border-radius:12px;padding:12px;border:2px solid #b6b1dd}button{cursor:pointer;background:#654bc4;color:white;font-weight:700}button:disabled{opacity:.55;cursor:default}.answers button{background:#eeeaff;color:#3a297c}.answers button:hover{background:#ded6ff}input,textarea{width:100%}label{display:block;font-weight:700;margin:14px 0 6px}.muted{color:#626983}.stars{font-size:28px;text-align:center;letter-spacing:3px}.center{text-align:center}.item{background:#f3f1ff;padding:16px;border-radius:14px}.success{color:#176c43;font-weight:bold}.error{color:#a32c3e;font-weight:bold}.tag{display:inline-block;background:#e8f6ef;border-radius:9px;padding:4px 8px}.reading-word{display:inline-block;margin-right:.28em}.reading-syllable{display:inline-block;margin-right:.25em}.reading-syllable span:nth-child(even){color:#aa2b84}.reading-syllable span:nth-child(odd){color:#225cbd}.question{font-size:1.45rem;line-height:1.7}.preview{font-size:65px;text-align:center}small{display:block;color:#626983;margin-top:12px}.gallery button{margin-top:8px}
+</style></head><body><main>
+<header><h1>🌟 El desafío de las 10 estrellas 🌟</h1><p>¡Leé, adiviná y creá tu propia adivinanza con Rigi!</p></header>
+<section id="choosePath"><h2>🌈 Elegí tu camino lector</h2><p>En los dos caminos podés ganar 10 estrellas y abrir el taller mágico.</p><div class="answers">
+<button id="startInitial">📖 LECTOR INICIAL · SÍLABAS DESTACADAS</button>
+<button id="startAdvanced">🔎 LECTOR AVANZADO · PALABRAS DESTACADAS</button></div></section>
+<section id="playArea" class="hidden"><button id="changePath">↩ Elegir otro camino</button><p id="pathLabel" class="muted"></p><div class="stars" id="stars"></div><p id="progress" class="center"></p><h2 id="question" class="question"></h2><button id="listen">🔊 Escuchar adivinanza</button><p id="listenstatus" aria-live="polite"></p><div class="answers" id="answers"></div><p id="feedback" aria-live="polite"></p><button id="next" class="hidden">Siguiente ➜</button></section>
+<section id="workshop" class="hidden"><h2>🎉 ¡Abriste el taller de pequeños escritores!</h2><p>Rigi dice: ¡Inventá tu propia adivinanza!</p>
+<div class="answers"><button id="writeAlone">✏️ ¡YO ESCRIBO!</button><button id="writeHelp">🎤 ¡CREO CON AYUDA!</button></div>
+<div id="creator" class="hidden"><h3 id="modeTitle"></h3><div id="helper" class="hidden"><p>Podés dictar con el micrófono o escribir con ayuda de un adulto.</p><button id="mic">🎤 Dictar mi adivinanza</button><p id="micstatus" aria-live="polite"></p><button id="listenDraft">🔊 Escuchar lo que escribí</button></div>
+<label for="riddle">Mi adivinanza</label><textarea id="riddle" rows="4" maxlength="180" placeholder="Escribí o dictá tu adivinanza..."></textarea>
+<label for="answer">La respuesta correcta</label><input id="answer" maxlength="60" placeholder="Por ejemplo: mariposa">
+<label for="picture">Imagen de la respuesta (opcional)</label><input id="picture" type="file" accept="image/png,image/jpeg,image/webp">
+<p class="muted">La imagen es opcional y debe ser pequeña (hasta 1 MB).</p><div id="preview" class="preview">🖼️</div>
+<label for="author">Mi nombre de fantasía</label><input id="author" maxlength="25" placeholder="Por ejemplo: Estrella Azul">
+<button id="save">⭐ Enviar a la Seño para revisar</button><p id="savefeedback" aria-live="polite"></p></div>
+<small>Las adivinanzas se envían para revisión docente. No se publican automáticamente. El dictado depende del navegador y del permiso de micrófono.</small></section>
+<section><h2>📚 Galería mágica de adivinanzas</h2><p class="muted">¡Jugá con las adivinanzas aprobadas por la Seño!</p><div id="gallery" class="gallery" aria-live="polite">Cargando galería...</div><button id="refresh">🔄 Actualizar galería</button></section>
+</main>
+<script type="module">
+import {createClient} from 'https://esm.sh/@supabase/supabase-js@2';
+const SUPABASE_URL='https://oldwpekclhjrtkzqauga.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY='PEGAR_AQUI_CLAVE_PUBLICA';
+const connected=SUPABASE_PUBLISHABLE_KEY.startsWith('sb_publishable_');
+const db=connected?createClient(SUPABASE_URL,SUPABASE_PUBLISHABLE_KEY):null;
+const $=id=>document.getElementById(id);
+const questions=[['Soy amarillo y doy luz durante el día. ¿Qué soy?',['El sol','La luna','La mesa'],0],['Tengo cuatro patas y digo miau. ¿Quién soy?',['El pato','El gato','El pez'],1],['Soy roja o verde y crezco en un árbol. ¿Qué soy?',['La manzana','La pelota','La silla'],0],['Tengo alas de colores y vuelo entre flores. ¿Quién soy?',['La hormiga','La mariposa','El caracol'],1],['Tengo dos ruedas y pedales. ¿Qué soy?',['La bicicleta','El tren','La cama'],0],['Tengo hojas y pétalos de colores. ¿Qué soy?',['La flor','El zapato','El vaso'],0],['Camino despacio y llevo caparazón. ¿Quién soy?',['El caballo','La tortuga','El león'],1],['Me abrís cuando llueve para no mojarte. ¿Qué soy?',['El paraguas','El libro','La taza'],0],['Tengo punta y sirvo para escribir. ¿Qué soy?',['El lápiz','La cuchara','El plato'],0],['Brillo en el cielo durante muchas noches. ¿Qué soy?',['El sol','La luna','La flor'],1]];
+const shortQuestions=[['AMARILLO · CIELO · CALIENTE',['EL SOL','LA LUNA','LA FLOR'],0],['PELO · PATAS · MIAU',['EL PATO','EL GATO','EL PEZ'],1],['ROJA · FRUTA · ÁRBOL',['LA MANZANA','LA MESA','LA SILLA'],0],['ALAS · FLORES · COLORES',['LA HORMIGA','LA MARIPOSA','EL CARACOL'],1],['RUEDAS · PEDALES · PASEO',['LA BICICLETA','EL TREN','LA CAMA'],0],['PÉTALOS · HOJAS · PERFUME',['LA FLOR','EL ZAPATO','EL VASO'],0],['LENTA · PATAS · CAPARAZÓN',['EL CABALLO','LA TORTUGA','EL LEÓN'],1],['LLUVIA · AGUA · ABRIR',['EL PARAGUAS','EL LIBRO','LA TAZA'],0],['PUNTA · PAPEL · ESCRIBIR',['EL LÁPIZ','LA CUCHARA','EL PLATO'],0],['NOCHE · CIELO · BRILLA',['EL SOL','LA LUNA','LA FLOR'],1]];
+let path='initial',index=0,answered=false;
+function speak(t){if(!('speechSynthesis'in window))return;$('listenstatus').textContent='';speechSynthesis.cancel();let u=new SpeechSynthesisUtterance(t);u.lang='es-AR';u.rate=.83;speechSynthesis.speak(u)}
+function decorate(text){
+  const root=document.createDocumentFragment();
+  // La separación en sílabas es orientativa y usa reglas sencillas para el nivel inicial.
+  const syllabify=w=>{const vowel=/[aeiouáéíóúü]/i;let parts=w.match(/[^aeiouáéíóúü]*[aeiouáéíóúü]+(?:[ns])?/gi);if(!parts||parts.join('').toLowerCase()!==w.toLowerCase())return [w];return parts};
+  for(const token of text.split(/(\s+)/)){if(/^\s+$/.test(token)){root.append(document.createTextNode(token));continue}
+    let span=document.createElement('span');span.className=path==='initial'?'reading-syllable':'reading-word';
+    if(path==='initial'){let m=token.match(/^([¿¡"']*)([\p{L}]+)(.*)$/u);if(m){span.append(document.createTextNode(m[1]));syllabify(m[2]).forEach(s=>{let part=document.createElement('span');part.textContent=s;span.append(part)});span.append(document.createTextNode(m[3]));}else span.textContent=token;}
+    else span.textContent=token;root.append(span)}
+  return root
+}
+function start(p){path=p;index=0;answered=false;$('choosePath').classList.add('hidden');$('playArea').classList.remove('hidden');$('workshop').classList.add('hidden');$('creator').classList.add('hidden');$('pathLabel').textContent=p==='initial'?'📖 LECTOR INICIAL · SÍLABAS DESTACADAS':'🔎 LECTOR AVANZADO · PALABRAS DESTACADAS';draw()}
+function draw(){
+ $('stars').textContent='⭐'.repeat(index)+'☆'.repeat(10-index);$('progress').textContent=`${index} de 10 estrellas`;
+ $('feedback').textContent='';$('next').classList.add('hidden');$('answers').replaceChildren();
+ if(index>=10){$('question').textContent='¡Ganaste las 10 estrellas!';$('listen').classList.add('hidden');$('workshop').classList.remove('hidden');$('feedback').textContent='¡Ahora podés inventar una adivinanza!';$('workshop').scrollIntoView({behavior:'smooth'});return}
+ $('listen').classList.remove('hidden');
+ let q=questions[index];$('question').replaceChildren(decorate('Adivinanza '+(index+1)+': '+q[0]));
+ q[1].forEach((a,i)=>{let b=document.createElement('button');b.textContent=a;b.onclick=()=>{
+ if(answered)return;
+ if(i!==q[2]){$('feedback').className='error';$('feedback').textContent='¡Probá otra vez!';return}
+ answered=true;index++;$('feedback').className='success';$('feedback').textContent='¡Muy bien! ⭐ Ganaste una estrella.';[...$('answers').children].forEach(x=>x.disabled=true);$('stars').textContent='⭐'.repeat(index)+'☆'.repeat(10-index);$('progress').textContent=`${index} de 10 estrellas`;$('next').textContent=index===10?'Abrir taller mágico ✨':'Siguiente adivinanza ➜';$('next').classList.remove('hidden')};$('answers').append(b)})
+}
+$('startInitial').onclick=()=>start('initial');$('startAdvanced').onclick=()=>start('advanced');
+$('changePath').onclick=()=>{$('playArea').classList.add('hidden');$('workshop').classList.add('hidden');$('choosePath').classList.remove('hidden')};
+$('next').onclick=()=>{answered=false;draw()};
+$('listen').onclick=()=>{let q=questions[index];if(q)speak(q[0]+' Opciones: '+q[1].join(', '))};
+function mode(help){$('creator').classList.remove('hidden');$('helper').classList.toggle('hidden',!help);$('modeTitle').textContent=help?'🎤 ¡CREO CON AYUDA!':'✏️ ¡YO ESCRIBO!';$('creator').scrollIntoView({behavior:'smooth'})}
+$('writeAlone').onclick=()=>mode(false);$('writeHelp').onclick=()=>mode(true);
+$('listenDraft').onclick=()=>speak($('riddle').value||'Primero escribí tu adivinanza.');
+$('mic').onclick=()=>{let Speech=window.SpeechRecognition||window.webkitSpeechRecognition;if(!Speech){$('micstatus').textContent='Este navegador no permite dictar. Podés escribir tu adivinanza.';return}let rec=new Speech();rec.lang='es-AR';rec.onresult=e=>{$('riddle').value=($('riddle').value+' '+e.results[0][0].transcript).trim();$('micstatus').textContent='¡Dictado recibido! Revisá el texto.'};rec.onerror=()=>{$('micstatus').textContent='No se pudo usar el micrófono.'};rec.start();$('micstatus').textContent='Te escucho...'};
+$('picture').onchange=()=>{$('preview').textContent=$('picture').files[0]?'🖼️ Imagen seleccionada':'🖼️'};
+async function gallery(){
+ const box=$('gallery');box.textContent='Cargando galería...';
+ if(!db){box.textContent='La galería estará disponible cuando se complete la conexión con Supabase.';return}
+ const {data,error}=await db.from('adivinanzas').select('id,nombre_fantasia,texto_adivinanza,respuesta_correcta,imagen').eq('estado','aprobada').order('created_at',{ascending:false}).limit(100);
+ if(error){box.textContent='No se pudo cargar la galería. Intentá actualizar.';return}
+ box.replaceChildren();if(!data?.length){box.textContent='Todavía no hay adivinanzas aprobadas. ¡Pronto aparecerán!';return}
+ for(const a of data){let d=document.createElement('article');d.className='item';let title=document.createElement('p');title.textContent=a.texto_adivinanza;let author=document.createElement('small');author.textContent='Creada por '+(a.nombre_fantasia||'Un pequeño escritor');let b=document.createElement('button');b.textContent='🎮 JUGAR CON ESTA ADIVINANZA';let result=document.createElement('div');result.className='hidden';b.onclick=()=>{result.classList.toggle('hidden');result.replaceChildren();if(a.imagen){if(a.imagen.startsWith('data:image/')){let img=document.createElement('img');img.src=a.imagen;img.alt='Imagen de la respuesta';img.style.maxWidth='180px';img.style.display='block';result.append(img)}else{let im=document.createElement('p');im.textContent=a.imagen;result.append(im)}}let txt=document.createElement('p');txt.textContent='Respuesta: '+a.respuesta_correcta;result.append(txt)};d.append(title,author,b,result);box.append(d)}
+}
+$('refresh').onclick=gallery;
+$('save').onclick=async()=>{
+ const feedback=$('savefeedback'),btn=$('save');feedback.className='error';let clue=$('riddle').value.trim(),answer=$('answer').value.trim(),author=$('author').value.trim();
+ if(clue.length<12||!answer){feedback.textContent='Escribí la adivinanza y su respuesta correcta.';return}
+ if(!author){feedback.textContent='Elegí un nombre de fantasía.';return}
+ if(!db){feedback.textContent='Todavía falta completar la clave pública de Supabase. No se envió la adivinanza.';return}
+ let img=null,file=$('picture').files[0];if(file){if(file.size>1024*1024){feedback.textContent='La imagen debe pesar menos de 1 MB.';return}img=await new Promise((resolve,reject)=>{let r=new FileReader();r.onload=()=>resolve(r.result);r.onerror=reject;r.readAsDataURL(file)})}
+ btn.disabled=true;feedback.className='muted';feedback.textContent='Enviando a revisión...';
+ try{let {error}=await db.from('adivinanzas').insert({nombre_fantasia:author,texto_adivinanza:clue,respuesta_correcta:answer,imagen:img,estado:'pendiente'});
+ if(error)throw error;feedback.className='success';feedback.textContent='¡Enviada! La Seño la revisará antes de publicarla. ⭐';$('riddle').value='';$('answer').value='';$('author').value='';$('picture').value='';$('preview').textContent='🖼️'}
+ catch(e){feedback.className='error';feedback.textContent='No se pudo enviar. Revisaremos la conexión y los permisos de Supabase.';console.error(e)}
+ finally{btn.disabled=false}
+};
+gallery();
+</script></body></html>
